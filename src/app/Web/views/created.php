@@ -16,9 +16,6 @@ $webcalUrl = preg_replace('#^https://#', 'webcal://', $feedUrl);
     </div>
     <p class="copy-status" id="copy-status" aria-live="polite"></p>
     <p><a class="button button--secondary" href="<?= $h($webcalUrl) ?>">Åbn i kalender-app</a></p>
-    <div class="notice">
-        Linket giver adgang til dit skema. Del det ikke med andre, og læg det ikke offentligt.
-    </div>
 </section>
 
 <section class="card">
@@ -30,8 +27,7 @@ $webcalUrl = preg_replace('#^https://#', 'webcal://', $feedUrl);
     </details>
     <details>
         <summary>Google Kalender (også Android)</summary>
-        <p>Åbn Google Kalender på en computer → <em>Andre kalendere</em> → <em>+</em> → <em>Fra webadresse</em>, og indsæt linket.
-            Google bestemmer selv, hvor ofte kalenderen hentes — det kan tage flere timer.</p>
+        <p>Åbn Google Kalender → <em>Andre kalendere</em> → <em>+</em> → <em>Fra webadresse</em>, og indsæt linket.</p>
     </details>
     <details>
         <summary>Outlook</summary>

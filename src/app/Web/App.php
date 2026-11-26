@@ -66,6 +66,7 @@ final class App
             $method === 'POST' && $path === '/administrer/slet' => $this->delete(),
             $method === 'POST' && $path === '/administrer/log-ud' => $this->logout(),
             $method === 'GET' && $path === '/privatliv' => View::render('privacy'),
+            $method === 'GET' && $path === '/direkte-login' => View::render('direct_login'),
             default => View::render('message', ['title' => 'Siden findes ikke', 'text' => 'Gå tilbage til forsiden.'], 404),
         };
     }
@@ -155,7 +156,7 @@ final class App
             View::render('home', [
                 'enabled' => true,
                 'username' => $username,
-                'error' => 'Studie+ godkendte ikke brugernavn og adgangskode. Bemærk: kun "Direkte" Studie+-login virker — ikke UNI-Login eller MitID.',
+                'error' => 'Studie+ godkendte ikke brugernavn og adgangskode. Bemærk: du skal bruge et "Direkte" Studie+-login. Logger du normalt ind med UNI-Login eller MitID, skal du først oprette et Direkte login (se guiden under "Direkte login" i menuen).',
             ], 400);
 
             return;

@@ -15,7 +15,8 @@
     <h2>Før du starter</h2>
     <ul>
         <li>Det virker kun, hvis du logger ind i Studie+ med <strong>"Direkte"</strong> (brugernavn og adgangskode til Studie+).
-            Logger du ind med UNI-Login eller MitID, kan tjenesten ikke bruges.</li>
+            Logger du normalt ind med UNI-Login eller MitID, skal du først oprette et Direkte login —
+            <a href="/direkte-login">se hvordan her</a>.</li>
         <li>Vi gemmer dit brugernavn og din adgangskode <strong>krypteret</strong>, så skemaet kan hentes automatisk.
             Du kan til enhver tid slette dem under <a href="/administrer">Administrér</a>.</li>
         <li>Brug ikke den samme adgangskode andre steder. Læs mere under <a href="/privatliv">Privatliv</a>.</li>
@@ -43,5 +44,5 @@
     </label>
 
     <button type="submit" class="button" <?= $enabled ? '' : 'disabled' ?>>Opret min kalender</button>
-    <p class="hint">Det kan tage op til et halvt minut, mens vi tjekker dit login og henter dit skema.</p>
+    <p class="hint">Det kan tage op til 2 minuter, mens vi tjekker dit login og henter dit skema.</p>
 </form>

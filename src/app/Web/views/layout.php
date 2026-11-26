@@ -13,7 +13,7 @@
 <body>
 <header class="site-header">
     <a href="/" class="brand">Skema i din kalender</a>
-    <nav><a href="/administrer">Administrér</a> <a href="/privatliv">Privatliv</a></nav>
+    <nav><a href="/direkte-login">Direkte login</a> <a href="/administrer">Administrér</a> <a href="/privatliv">Privatliv</a></nav>
 </header>
 <main>
 <?= $content ?>
