@@ -14,9 +14,10 @@ Uofficiel tjeneste. Den er ikke tilknyttet Studie+, Uddata+ eller HANSENBERG.
 | Opdateringsplan og cron | Implementeret, planlogik testet |
 | MySQL-lagring (`MysqlStore`) | Implementeret, **ikke kørt mod en database** |
 | Studie+-login (Direkte) | Implementeret efter tidligere beskrivelse, **ikke verificeret**, se nedenfor |
-| Studie+-skemahentning (GWT-RPC) | **Afventer et anonymiseret eksempel**. Er slået fra |
+| Studie+-skemahentning (GWT-RPC) | Implementeret og testet mod et rigtigt, anonymiseret svar. **Ikke kørt mod Studie+ endnu**. Er slået fra |
+| Aflyste lektioner | **Ikke set i et svar endnu**. En ukendt status giver fejlen `gwt_unknown_event_status` i stedet for et gæt |
 
-Indtil GWT-delen er færdig, står `studieplus.enabled` til `false`. Så kontaktes Studie+ ikke, websitet viser "ikke aktiveret endnu", og der publiceres aldrig gættede data.
+Indtil `verify-studieplus.php` er kørt med succes, står `studieplus.enabled` til `false`. Så kontaktes Studie+ ikke, websitet viser "ikke aktiveret endnu", og der publiceres aldrig gættede data.
 
 ### Hvad er verificeret om Studie+ (26.11.2026)
 
@@ -61,7 +62,7 @@ src/                     ← uploades til webroot (GitHub Actions: ftp-upload.ym
     Ical/                IcalWriter (RFC 5545) og FeedEvent
     Store/               Store-interface og MysqlStore
     Sync/                SyncService, SyncPolicy (plan og backoff), ScheduleSource
-    StudiePlus/          login-klient, GWT-dato, generisk GWT-læser, mapper (afventer)
+    StudiePlus/          login-klient, GWT-request, GWT-læser og -objektlæser, skemamapper
     Feed/FeedService.php token → én brugers kalender
     Web/                 App (routing), Csrf, View og skabeloner
     bin/cron.php         planlagt opdatering (kun CLI)
@@ -206,6 +207,8 @@ php tests/run.php ical       # kun tests hvis navn indeholder "ical"
   - at fejl og tomme svar ikke overskriver gyldige data
   - låse
   - den generiske GWT-læser
+  - GWT-request (byte for byte som browserens) og mapning af et rigtigt, anonymiseret skemasvar
+  - at fravær og elevdata aldrig kommer med i lektionerne, og at ændret format giver fejl
 - Ikke dækket: `MysqlStore` (SQL'en er ikke kørt), `StudiePlusClient` (kræver Studie+) og `Web\App` (HTTP-laget).
 
 ## Sikkerhed og persondata
@@ -252,17 +255,23 @@ Hvis rate limiting fejler, afvises forespørgslen.
 
 **Sletning.** Brugeren kan selv slette sine data under *Administrér*. Data slettes desuden automatisk, hvis feeden ikke er hentet i 90 dage.
 
-## Næste skridt: GWT-hentningen
+## GWT-hentningen
 
-Det, der mangler, er `StudiePlusScheduleSource::requestSchedule()` og `SkemaResponseMapper::map()`. De bygges ud fra ét anonymiseret eksempel:
+Kaldet er `SkemaService.hentEgnePersSkemaData(UDate fra, UDate til)` på `/skema/skema/skemaservice`.
 
-1. Log ind i Studie+ i en browser, og åbn DevTools → *Network*.
-2. Åbn skemaet, og find kaldet til `skemaservice`.
-3. Kopiér:
-   - request-body'en (linjen der starter med `7|…`)
-   - værdierne af `X-GWT-Permutation` og `X-GWT-Module-Base`
-   - svaret (`//OK[…]`)
-4. Anonymisér: erstat navne, initialer, lokaler, noter og lektier i svarets strengtabel med pladsholdere som `LÆRER1` og `NOTE1`. Bevar tal, rækkefølge og struktur. Fjern fravær, hvis det optræder.
-5. Send **aldrig** `Cookie`-headeren eller andre headers end de to ovenfor.
+- **Request:** [SkemaRequest](src/app/StudiePlus/SkemaRequest.php) bygger body'en, så den er identisk med browserens. Intervallet hentes i bidder på `chunk_days` dage (standard 7).
+- **Svar:** GWT-formatet er ikke selvbeskrivende. [GwtObjectReader](src/app/StudiePlus/GwtObjectReader.php) læser objektgrafen ud fra et fast katalog over klasser og deres feltrækkefølge i [SkemaResponseMapper](src/app/StudiePlus/SkemaResponseMapper.php). Svaret skal kunne læses præcis til ende. En ukendt type, en ændret typesignatur eller overskydende data giver en fejl i stedet for et gæt.
+- **Indhold:** Svaret indeholder også fraværstyper, fraværsregistreringer og elevens navn. De læses kun for at komme forbi dem og bruges eller gemmes aldrig.
+- **Testdata:** [tests/fixtures/skema-response.txt](tests/fixtures/skema-response.txt) er et rigtigt svar (uge 48, 2026), hvor navne, initialer, lokaler, hold, noter og elevens id'er er erstattet med pladsholdere.
 
-Eksemplet lægges i `tests/fixtures/` som testdata. Der skrives tests mod det, før `studieplus.enabled` sættes til `true`.
+### Før `studieplus.enabled` sættes til `true`
+
+1. Kør testene: `php tests/run.php`.
+2. Kør `php <webroot>/app/bin/verify-studieplus.php` via SSH med dine egne oplysninger. Den logger ind, henter hele intervallet og udskriver kun antal og datoer.
+3. Kør den eventuelt igen med `140` som argument. Giver det samme antal lektioner, kan `chunk_days` sættes op, så der bruges færre kald.
+
+### Når Studie+ opdateres
+
+- **`gwt_incompatible_version`:** Studie+ har udgivet en ny version. Find de nye værdier i DevTools (`X-GWT-Permutation` og den 2. streng i request-body'en), og sæt `studieplus.permutation` og `studieplus.policy` i secrets-filen.
+- **`gwt_unknown_type` eller `gwt_trailing_data`:** En klasse har ændret felter. Der skal et nyt anonymiseret svar til, og layoutet skal opdateres.
+- **`gwt_unknown_event_status`:** En lektion har en status, vi ikke har set før (sandsynligvis aflyst). Der skal et svar med en aflyst lektion til.

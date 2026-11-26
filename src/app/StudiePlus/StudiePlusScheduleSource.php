@@ -6,25 +6,38 @@ namespace SkemaService\StudiePlus;
 
 use SkemaService\Credentials;
 use SkemaService\Schedule\DateRange;
+use SkemaService\Schedule\Lesson;
 use SkemaService\Sync\ScheduleSource;
 use SkemaService\Sync\SourceUnavailable;
 
 /**
  * Henter skema fra Studie+ via GWT-RPC (SkemaService.hentEgnePersSkemaData).
  *
- * AFVENTER VERIFIKATION: Request-opbygningen (permutation, policy-hash,
- * typesignaturer) og mapningen af SkemaBegivenhed-felter bygges færdig
- * ud fra et anonymiseret, rigtigt request/svar. Indtil da kaster
- * fetch() SourceUnavailable('gwt_not_verified'), så servicen aldrig
- * publicerer gættede data. Er 'enabled' false, kontaktes Studie+ slet ikke.
+ * Intervallet hentes i bidder på chunk_days dage (standard 7, som browseren).
+ * Permutation og policy-hash ændres, når Studie+ udgiver en ny version;
+ * så svarer serveren med IncompatibleRemoteServiceException, fejlkoden
+ * bliver gwt_incompatible_version, og værdierne skal opdateres i secrets-filen.
+ * Er 'enabled' false, kontaktes Studie+ slet ikke.
  */
 final class StudiePlusScheduleSource implements ScheduleSource
 {
+    private const MAX_CHUNK_DAYS = 140;
+    private const PAUSE_BETWEEN_REQUESTS_US = 300_000;
+
     public function __construct(
         private readonly bool $enabled,
         private readonly string $baseUrl,
         private readonly string $instnr,
+        private readonly string $permutation = SkemaRequest::DEFAULT_PERMUTATION,
+        private readonly string $policy = SkemaRequest::DEFAULT_POLICY,
+        private readonly int $chunkDays = 7,
     ) {
+        if ($this->chunkDays < 1 || $this->chunkDays > self::MAX_CHUNK_DAYS) {
+            throw new \InvalidArgumentException('studieplus.chunk_days skal være mellem 1 og ' . self::MAX_CHUNK_DAYS . '.');
+        }
+        if (preg_match('/^[0-9A-F]{32}$/', $this->permutation) !== 1) {
+            throw new \InvalidArgumentException('studieplus.permutation skal være 32 hex-tegn.');
+        }
     }
 
     /** @param array<string, mixed> $settings */
@@ -34,6 +47,9 @@ final class StudiePlusScheduleSource implements ScheduleSource
             (bool) ($settings['enabled'] ?? false),
             (string) ($settings['base_url'] ?? 'https://all.studieplus.dk'),
             (string) ($settings['instnr'] ?? '621401'),
+            (string) ($settings['permutation'] ?? SkemaRequest::DEFAULT_PERMUTATION),
+            (string) ($settings['policy'] ?? SkemaRequest::DEFAULT_POLICY),
+            (int) ($settings['chunk_days'] ?? 7),
         );
     }
 
@@ -48,22 +64,57 @@ final class StudiePlusScheduleSource implements ScheduleSource
             throw new SourceUnavailable('studieplus_disabled');
         }
 
-        $client = new StudiePlusClient($this->baseUrl, $this->instnr);
+        return $this->fetchWith(new StudiePlusClient($this->baseUrl, $this->instnr), $credentials, $range);
+    }
+
+    /**
+     * Logger ind og henter hele intervallet. Bruges også af bin/verify-studieplus.php.
+     *
+     * @return list<Lesson>
+     */
+    public function fetchWith(StudiePlusClient $client, Credentials $credentials, DateRange $range): array
+    {
         try {
             $client->login($credentials);
-            $body = $this->requestSchedule($client, $range);
+            $lessons = [];
+            // Til-datoen sendes som dagen efter sidste dag, så sidste dag med sikkerhed er med.
+            $end = $range->lastDay->modify('+1 day');
+            for ($from = $range->firstDay; $from < $end; $from = $to) {
+                if ($from > $range->firstDay) {
+                    usleep(self::PAUSE_BETWEEN_REQUESTS_US);
+                }
+                $to = min($from->modify("+{$this->chunkDays} days"), $end);
+                foreach ($this->requestChunk($client, $from, $to) as $lesson) {
+                    $lessons[$lesson->sourceId] = $lesson;
+                }
+            }
 
-            return SkemaResponseMapper::map(GwtResponseReader::parse($body));
+            return array_values($lessons);
         } finally {
             $client->close();
         }
     }
 
-    private function requestSchedule(StudiePlusClient $client, DateRange $range): string
+    /** @return list<Lesson> */
+    private function requestChunk(StudiePlusClient $client, \DateTimeImmutable $from, \DateTimeImmutable $to): array
     {
-        // Datoerne kodes med GwtDate::toRpcFragment($range->firstDay / ->lastDay).
-        // Resten af request-body og headers (X-GWT-Permutation, policy-hash,
-        // UDate-typesignatur) bygges ud fra det anonymiserede eksempel.
-        throw new SourceUnavailable('gwt_not_verified');
+        $base = $client->baseUrl();
+        $response = $client->post(
+            SkemaRequest::SERVICE_PATH,
+            SkemaRequest::body($base . SkemaRequest::MODULE_PATH, $this->policy, $from, $to),
+            [
+                'Content-Type: text/x-gwt-rpc; charset=UTF-8',
+                'X-GWT-Module-Base: ' . $base . SkemaRequest::MODULE_PATH,
+                'X-GWT-Permutation: ' . $this->permutation,
+                'Origin: ' . $base,
+                'Referer: ' . $base . '/skema/',
+            ],
+            true, // GWT sender //EX med HTTP 500; læs body for at få den rigtige fejlkode
+        );
+        if (str_starts_with((string) parse_url($response['url'], PHP_URL_PATH), '/login')) {
+            throw new SourceUnavailable('session_lost');
+        }
+
+        return SkemaResponseMapper::map(GwtResponseReader::parse($response['body']));
     }
 }

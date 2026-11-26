@@ -41,6 +41,10 @@ final class GwtResponseReader
         }
         $body = ltrim($body, "\xEF\xBB\xBF \t\r\n");
         if (str_starts_with($body, '//EX')) {
+            // Studie+ har udgivet en ny version: permutation/policy skal opdateres.
+            if (str_contains($body, 'IncompatibleRemoteServiceException')) {
+                throw new SourceUnavailable('gwt_incompatible_version');
+            }
             throw new SourceUnavailable('gwt_remote_exception');
         }
         if (!str_starts_with($body, '//OK')) {

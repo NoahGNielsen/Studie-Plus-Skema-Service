@@ -75,11 +75,12 @@ final class StudiePlusClient
 
     /**
      * @param list<string> $headers
+     * @param bool $allowServerError returnér svar med status 5xx i stedet for at kaste (GWT sender //EX med 500)
      * @return array{status: int, body: string, url: string}
      */
-    public function post(string $path, string $body, array $headers = []): array
+    public function post(string $path, string $body, array $headers = [], bool $allowServerError = false): array
     {
-        return $this->request('POST', $path, $body, $headers);
+        return $this->request('POST', $path, $body, $headers, $allowServerError);
     }
 
     public function baseUrl(): string
@@ -134,7 +135,7 @@ final class StudiePlusClient
      * @param list<string> $headers
      * @return array{status: int, body: string, url: string}
      */
-    private function request(string $method, string $path, ?string $body, array $headers): array
+    private function request(string $method, string $path, ?string $body, array $headers, bool $allowServerError = false): array
     {
         if ($this->curl === null) {
             $this->open();
@@ -175,7 +176,7 @@ final class StudiePlusClient
         if ($host !== $this->host() && !str_ends_with($host, '.studieplus.dk')) {
             throw new SourceUnavailable('unexpected_redirect_host');
         }
-        if ($status >= 500) {
+        if ($status >= 500 && !($allowServerError && $status === 500)) {
             throw new SourceUnavailable('http_' . $status);
         }
         if ($status === 429) {

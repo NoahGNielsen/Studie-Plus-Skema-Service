@@ -35,5 +35,15 @@ return [
         'enabled' => false,
         'base_url' => 'https://all.studieplus.dk',
         'instnr' => '621401', // HANSENBERG (fra Studie+'s offentlige loginside)
+
+        // Valgfrit. Standardværdierne er fra 26.11.2026. Når Studie+ udgiver en ny
+        // version, fejler hentningen med gwt_incompatible_version; så findes de nye
+        // værdier i browserens DevTools (X-GWT-Permutation og 2. streng i request-body'en).
+        // 'permutation' => '59FCE8AE0F360F593819F2DD865EEEBA',
+        // 'policy' => '5BE4D5F01665D46AC05E7085B8ECDF64',
+
+        // Antal dage pr. kald (1–140). Browseren bruger 7. Kan sættes op, hvis
+        // verify-studieplus.php giver samme antal lektioner med en større værdi.
+        // 'chunk_days' => 7,
     ],
 ];

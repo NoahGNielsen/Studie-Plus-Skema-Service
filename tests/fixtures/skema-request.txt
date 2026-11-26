@@ -1,0 +1,1 @@
+7|0|6|https://all.studieplus.dk/skema/skema/|5BE4D5F01665D46AC05E7085B8ECDF64|dk.uddata.services.interfaces.SkemaService|hentEgnePersSkemaData|dk.uddata.gwt.comm.shared.UDate/2314285719|UDate:|1|2|3|4|2|5|5|5|6|126|10|23|0|0|0|5|6|126|10|29|0|0|0|

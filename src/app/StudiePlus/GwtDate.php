@@ -9,9 +9,9 @@ use DateTimeZone;
 use SkemaService\Schedule\Lesson;
 
 /**
- * Datoformat i Studie+'s GWT-RPC-kald (tidligere observeret, ikke
- * verificeret mod et aktuelt kald):
- *   år-1900 | nulbaseret måned | dag | 0 | 0 | 0
+ * Datofelterne i en UDate i Studie+'s GWT-RPC-kald (verificeret mod
+ * browserens kald 26.11.2026; i request'et står "5|6|" foran):
+ *   år-1900 | nulbaseret måned | dag | time | minut | sekund
  * Eksempel: 7. december 2026 → 126|11|7|0|0|0
  */
 final class GwtDate
