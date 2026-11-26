@@ -30,7 +30,7 @@ test('ical: grundstruktur og CRLF-linjeskift', function (): void {
     assertTrue(str_starts_with($ics, "BEGIN:VCALENDAR\r\nVERSION:2.0\r\n"));
     assertTrue(str_ends_with($ics, "END:VCALENDAR\r\n"));
     assertSame(0, preg_match('/(?<!\r)\n/', $ics), 'alle linjer skal slutte med CRLF');
-    foreach (['PRODID:', 'METHOD:PUBLISH', 'BEGIN:VTIMEZONE', 'TZID:Europe/Copenhagen', 'BEGIN:VEVENT', 'UID:uid-1@test', 'DTSTAMP:20261201T120000Z', 'SEQUENCE:0', 'END:VEVENT'] as $needle) {
+    foreach (['PRODID:', 'METHOD:PUBLISH', 'BEGIN:VTIMEZONE', 'TZID:Europe/Copenhagen', 'BEGIN:VEVENT', 'UID:uid-1@test', 'DTSTAMP:20261201T120000Z', 'SEQUENCE:0', 'CLASS:PUBLIC', 'END:VEVENT'] as $needle) {
         assertContains($needle, $ics);
     }
     assertSame(substr_count($ics, 'BEGIN:VEVENT'), substr_count($ics, 'END:VEVENT'));

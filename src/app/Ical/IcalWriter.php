@@ -78,6 +78,7 @@ final class IcalWriter
         if ($description !== '') {
             $lines[] = 'DESCRIPTION:' . self::escape($description);
         }
+        $lines[] = 'CLASS:PUBLIC';
         $lines[] = 'STATUS:' . ($lesson->cancelled ? 'CANCELLED' : 'CONFIRMED');
         $lines[] = 'TRANSP:' . ($lesson->cancelled ? 'TRANSPARENT' : 'OPAQUE');
         $lines[] = 'END:VEVENT';
