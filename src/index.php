@@ -19,8 +19,10 @@ ini_set('display_errors', '0');
 ini_set('expose_php', '0');
 header_remove('X-Powered-By');
 
+$config = null;
 try {
-    $services = new Services(Config::load());
+    $config = Config::load();
+    $services = new Services($config);
     (new App(
         $services->config,
         $services->store,
@@ -31,7 +33,9 @@ try {
         $services->logger,
     ))->run();
 } catch (Throwable $e) {
-    (new Logger())->exception('request_failed', $e);
+    // Brug den konfigurerede logfil, hvis konfigurationen nåede at blive indlæst.
+    $logFile = $config?->get('log_file');
+    (new Logger(is_string($logFile) && $logFile !== '' ? $logFile : null))->exception('request_failed', $e);
     if (!headers_sent()) {
         http_response_code(500);
         header('Content-Type: text/plain; charset=utf-8');

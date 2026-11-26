@@ -160,6 +160,16 @@ php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'   # → master_key
 
 Filen er nævnt i `.gitignore` og må aldrig committes eller lægges i webroot. `Config::load()` nægter at bruge den, hvis den ligger under `DOCUMENT_ROOT`.
 
+### Kontrol af installationen
+
+Viser websitet "Der opstod en fejl", så log ind med SSH og kør:
+
+```sh
+/usr/local/bin/php <webroot>/app/bin/check-setup.php
+```
+
+Scriptet kontrollerer udvidelser, placeringen af secrets-filen, felterne, databaseforbindelsen og tabellerne, og det viser den første fejl. Hemmeligheder udskrives aldrig.
+
 ### 4. Cron
 
 Log ind med SSH og kør `crontab -e`:
