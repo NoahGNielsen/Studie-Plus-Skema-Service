@@ -35,7 +35,11 @@ final class Logger
     {
         $context['exception'] = $e::class;
         $context['at'] = basename($e->getFile()) . ':' . $e->getLine();
-        if (!$e instanceof PDOException) {
+        if ($e instanceof PDOException) {
+            // Kun SQLSTATE/driverkode (fx 1045 adgang nægtet, 1049 ukendt database, 2002 vært utilgængelig) — aldrig beskeden.
+            $context['sqlstate'] = (string) $e->getCode();
+            $context['driver_code'] = isset($e->errorInfo[1]) ? (string) $e->errorInfo[1] : null;
+        } else {
             $context['message'] = self::redact($e->getMessage());
         }
         $this->write('ERROR', $event, $context);

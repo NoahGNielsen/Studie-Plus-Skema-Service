@@ -93,7 +93,7 @@ final class SyncService
                 $this->store->releaseUserLock($userId);
             }
         }
-        $this->logger->info('enrolled', ['user' => $userId, 'events' => count($lessons), 'existing' => $existing !== null]);
+        $this->logger->info('enrolled', ['user' => $userId, 'events' => count($lessons), 'existing' => $existing !== null ? 1 : 0]);
 
         return ['userId' => $userId, 'token' => $token];
     }
