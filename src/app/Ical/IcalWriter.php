@@ -22,7 +22,7 @@ final class IcalWriter
     private const CRLF = "\r\n";
 
     public function __construct(
-        private readonly string $calendarName = 'Skema (Studie+)',
+        private readonly string $calendarName = 'Skema (Studie+ Skema Service)',
         private readonly string $prodId = '-//Studie Plus Skema Service//Skema//DA',
     ) {
     }
