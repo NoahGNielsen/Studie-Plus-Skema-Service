@@ -80,7 +80,6 @@ final class IcalWriter
         }
         $lines[] = 'STATUS:' . ($lesson->cancelled ? 'CANCELLED' : 'CONFIRMED');
         $lines[] = 'TRANSP:' . ($lesson->cancelled ? 'TRANSPARENT' : 'OPAQUE');
-        $lines[] = 'CLASS:PRIVATE';
         $lines[] = 'END:VEVENT';
 
         return $lines;
