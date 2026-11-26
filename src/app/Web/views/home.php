@@ -23,7 +23,7 @@
     </ul>
 </section>
 
-<form class="card form" method="post" action="/opret" autocomplete="off">
+<form class="card form" method="post" action="/opret" autocomplete="off" data-loading>
     <input type="hidden" name="csrf" value="<?= $h($csrf) ?>">
     <label for="username">Studie+-brugernavn</label>
     <input id="username" name="username" type="text" required maxlength="100" autocapitalize="none" spellcheck="false"
@@ -44,5 +44,5 @@
     </label>
 
     <button type="submit" class="button" <?= $enabled ? '' : 'disabled' ?>>Opret min kalender</button>
-    <p class="hint">Det kan tage op til 2 minuter, mens vi tjekker dit login og henter dit skema.</p>
+    <p class="hint" data-loading-text role="status" aria-live="polite" hidden>Vi henter dit skema … Det kan tage op til 2 minutter, mens vi tjekker dit login og henter dit skema. Luk ikke siden.</p>
 </form>

@@ -20,3 +20,16 @@ document.addEventListener('focusin', (event) => {
     event.target.select();
   }
 });
+
+// Vis ventebesked og lås knappen, mens skemaet hentes efter indsendelse.
+document.addEventListener('submit', (event) => {
+  const form = event.target;
+  if (!form.matches || !form.matches('form[data-loading]')) return;
+  const text = form.querySelector('[data-loading-text]');
+  if (text) text.hidden = false;
+  const button = form.querySelector('button[type="submit"]');
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'Henter dit skema …';
+  }
+});
