@@ -20,6 +20,7 @@
 </main>
 <footer class="site-footer">
     <p>Uofficiel tjeneste — ikke tilknyttet Studie+, Uddata+ eller HANSENBERG.</p>
+    <p>© 2026 <a href="https://noahgajnielsen.dk/">Noah G. Nielsen</a></p>
 </footer>
 </body>
 </html>
