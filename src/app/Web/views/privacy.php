@@ -11,6 +11,9 @@
         <li><strong>En hash af dit kalenderlink</strong> — selve linket gemmes ikke, derfor kan vi ikke vise det igen.</li>
         <li><strong>Driftsstatus</strong>: hvornår skemaet sidst blev hentet, en kort fejlkode og den dato, din kalender sidst blev hentet.</li>
         <li>Til at begrænse misbrug gemmer vi i kort tid en tæller knyttet til en hash af din IP-adresse. IP-adressen selv gemmes ikke af tjenesten.</li>
+        <li><strong>En driftslog</strong> til fejlsøgning: tidspunkt, side, statuskode, svartid, browser-/app-type, et internt bruger-nummer,
+            en forkortet hash af IP-adressen samt antal lektioner og fejlkoder fra hentninger. Loggen indeholder ikke brugernavne,
+            adgangskoder, cookies, kalenderlinks eller skemaindhold.</li>
     </ul>
 </section>
 

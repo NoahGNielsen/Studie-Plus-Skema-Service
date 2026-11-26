@@ -71,7 +71,18 @@ final class SyncService
     {
         $username = trim($username);
         $now = $this->now();
-        $lessons = $this->source->fetch(new Credentials($username, $password), $this->range($now));
+        $started = microtime(true);
+        $this->logger->info('enroll_start', ['keep_link' => $keepExistingToken]);
+        try {
+            $lessons = $this->source->fetch(new Credentials($username, $password), $this->range($now));
+        } catch (AuthenticationFailed $e) {
+            $this->logger->info('enroll_auth_failed', ['ms' => self::ms($started)]);
+            throw $e;
+        } catch (SourceUnavailable $e) {
+            $this->logger->warning('enroll_fetch_failed', ['code' => $e->errorCode, 'ms' => self::ms($started)]);
+            throw $e;
+        }
+        $this->logger->info('enroll_fetched', ['events' => count($lessons), 'ms' => self::ms($started)]);
 
         $lookup = $this->crypto->lookupHash($username);
         $usernameEnc = $this->crypto->encrypt($username, self::associatedData($lookup, 'username'));
@@ -90,9 +101,14 @@ final class SyncService
         // Skemaet skal være gemt, før linket vises, så kalenderen ikke er tom, hvis
         // brugeren tilføjer den med det samme. Kører cron netop nu for brugeren,
         // venter vi på den i stedet for at springe over.
+        $this->logger->debug($existing !== null ? 'enroll_user_updated' : 'enroll_user_created', ['user' => $userId, 'new_token' => $token !== null]);
+        $lockStarted = microtime(true);
         $locked = $this->store->acquireUserLock($userId, self::ENROLL_LOCK_WAIT_SECONDS);
+        if (!$locked) {
+            $this->logger->warning('enroll_lock_not_acquired', ['user' => $userId, 'waited_ms' => self::ms($lockStarted)]);
+        }
         try {
-            $this->storeLessons($userId, $lessons, $now);
+            $stats = $this->storeLessons($userId, $lessons, $now);
             $this->store->markAttempt($userId, $now);
             $this->store->markSuccess($userId, $now);
         } finally {
@@ -100,22 +116,39 @@ final class SyncService
                 $this->store->releaseUserLock($userId);
             }
         }
-        $this->logger->info('enrolled', ['user' => $userId, 'events' => count($lessons), 'existing' => $existing !== null ? 1 : 0]);
+        $this->logger->info('enrolled', [
+            'user' => $userId,
+            'events' => count($lessons),
+            'existing' => $existing !== null ? 1 : 0,
+            'new_token' => $token !== null,
+            'locked' => $locked,
+            'ms' => self::ms($started),
+        ] + $stats);
 
         return ['userId' => $userId, 'token' => $token];
     }
 
     public function syncUser(int $userId): string
     {
+        $started = microtime(true);
         if (!$this->store->acquireUserLock($userId)) {
+            $this->logger->info('sync_locked', ['user' => $userId]);
+
             return self::LOCKED;
         }
         try {
             $user = $this->store->findUserById($userId);
             if ($user === null || $user['status'] !== Store::STATUS_ACTIVE) {
+                $this->logger->info('sync_skipped', ['user' => $userId, 'status' => $user['status'] ?? 'missing']);
+
                 return self::SKIPPED;
             }
             $now = $this->now();
+            $this->logger->debug('sync_start', [
+                'user' => $userId,
+                'last_success' => $user['last_success_at'] ?? null,
+                'failures' => $user['failure_count'] ?? null,
+            ]);
             $this->store->markAttempt($userId, $now);
 
             try {
@@ -131,21 +164,22 @@ final class SyncService
                 $lessons = $this->source->fetch($credentials, $this->range($now));
             } catch (AuthenticationFailed) {
                 $this->store->markFailure($userId, 'auth_failed', true, $now);
-                $this->logger->warning('auth_failed', ['user' => $userId]);
+                $this->logger->warning('auth_failed', ['user' => $userId, 'ms' => self::ms($started)]);
 
                 return self::AUTH_FAILED;
             } catch (SourceUnavailable $e) {
                 $this->store->markFailure($userId, $e->errorCode, false, $now);
-                $this->logger->warning('source_unavailable', ['user' => $userId, 'code' => $e->errorCode]);
+                $this->logger->warning('source_unavailable', ['user' => $userId, 'code' => $e->errorCode, 'ms' => self::ms($started)]);
 
                 return self::FAILED;
             } catch (Throwable $e) {
                 $this->store->markFailure($userId, 'internal_error', false, $now);
-                $this->logger->exception('sync_error', $e, ['user' => $userId]);
+                $this->logger->exception('sync_error', $e, ['user' => $userId, 'ms' => self::ms($started)]);
 
                 return self::FAILED;
             }
 
+            $fetched = count($lessons);
             $lessons = $this->filter($lessons, $now);
             if ($lessons === [] && $this->store->eventsForUser($userId) !== []) {
                 $streak = $this->store->incrementEmptyStreak($userId);
@@ -154,10 +188,17 @@ final class SyncService
 
                     return self::KEPT_PREVIOUS;
                 }
+                $this->logger->warning('empty_result_accepted', ['user' => $userId, 'streak' => $streak]);
             }
 
-            $this->storeLessons($userId, $lessons, $now);
+            $stats = $this->storeLessons($userId, $lessons, $now);
             $this->store->markSuccess($userId, $now);
+            $this->logger->info('sync_ok', [
+                'user' => $userId,
+                'fetched' => $fetched,
+                'events' => count($lessons),
+                'ms' => self::ms($started),
+            ] + $stats);
 
             return self::OK;
         } finally {
@@ -181,16 +222,31 @@ final class SyncService
         if ($user === null) {
             // Udfør en tilsvarende operation for at udjævne svartid.
             hash_equals(hash('sha256', 'x'), hash('sha256', $password));
+            $this->logger->info('verify_credentials_unknown_user');
 
             return null;
         }
+        $userId = (int) $user['id'];
         try {
             $stored = $this->credentialsFor($user);
-        } catch (Throwable) {
+        } catch (Throwable $e) {
+            $this->logger->exception('verify_credentials_decrypt_failed', $e, ['user' => $userId]);
+
             return null;
         }
+        if (!hash_equals(hash('sha256', $stored->password()), hash('sha256', $password))) {
+            $this->logger->info('verify_credentials_mismatch', ['user' => $userId]);
 
-        return hash_equals(hash('sha256', $stored->password()), hash('sha256', $password)) ? (int) $user['id'] : null;
+            return null;
+        }
+        $this->logger->debug('verify_credentials_ok', ['user' => $userId]);
+
+        return $userId;
+    }
+
+    private static function ms(float $since): int
+    {
+        return (int) round((microtime(true) - $since) * 1000);
     }
 
     public static function associatedData(string $lookupHash, string $field): string
@@ -229,9 +285,13 @@ final class SyncService
         return $out;
     }
 
-    /** @param list<Lesson> $lessons */
-    private function storeLessons(int $userId, array $lessons, DateTimeImmutable $now): void
+    /**
+     * @param list<Lesson> $lessons
+     * @return array{added: int, changed: int, unchanged: int, removed: int}
+     */
+    private function storeLessons(int $userId, array $lessons, DateTimeImmutable $now): array
     {
+        $stats = ['added' => 0, 'changed' => 0, 'unchanged' => 0, 'removed' => 0];
         $existing = [];
         foreach ($this->store->eventsForUser($userId) as $row) {
             $existing[$row['uid']] = $row;
@@ -246,13 +306,17 @@ final class SyncService
             if ($previous === null) {
                 $sequence = 0;
                 $lastModified = $nowUtc;
+                $stats['added']++;
             } elseif ($previous['content_hash'] === $hash) {
                 $sequence = (int) $previous['sequence'];
                 $lastModified = (string) $previous['last_modified'];
+                $stats['unchanged']++;
             } else {
                 $sequence = (int) $previous['sequence'] + 1;
                 $lastModified = $nowUtc;
+                $stats['changed']++;
             }
+            unset($existing[$uid]);
             $rows[] = [
                 'uid' => $uid,
                 'sequence' => $sequence,
@@ -262,6 +326,9 @@ final class SyncService
             ];
         }
         $this->store->replaceEvents($userId, $rows);
+        $stats['removed'] = count($existing);
+
+        return $stats;
     }
 
     private function range(DateTimeImmutable $now): DateRange

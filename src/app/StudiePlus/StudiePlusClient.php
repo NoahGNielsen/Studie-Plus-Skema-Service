@@ -6,6 +6,7 @@ namespace SkemaService\StudiePlus;
 
 use CurlHandle;
 use SkemaService\Credentials;
+use SkemaService\Logger;
 use SkemaService\Sync\AuthenticationFailed;
 use SkemaService\Sync\SourceUnavailable;
 
@@ -37,6 +38,7 @@ final class StudiePlusClient
         private readonly string $baseUrl,
         private readonly string $instnr,
         private readonly int $timeoutSeconds = 30,
+        private readonly ?Logger $logger = null,
     ) {
         if (!str_starts_with($this->baseUrl, 'https://')) {
             throw new \InvalidArgumentException('Studie+ base_url skal være https.');
@@ -59,11 +61,15 @@ final class StudiePlusClient
 
         $path = (string) parse_url($response['url'], PHP_URL_PATH);
         if (str_starts_with($path, '/skema')) {
+            $this->logger?->debug('studieplus_login_ok', ['final_path' => self::safePath($path)]);
+
             return;
         }
         if (stripos($response['body'], 'Studie+ Login') !== false || str_starts_with($path, '/login')) {
+            $this->logger?->info('studieplus_login_rejected', ['status' => $response['status'], 'final_path' => self::safePath($path)]);
             throw new AuthenticationFailed('Studie+ afviste login.');
         }
+        $this->logger?->warning('studieplus_login_unexpected', ['status' => $response['status'], 'final_path' => self::safePath($path)]);
         throw new SourceUnavailable('login_flow_unexpected');
     }
 
@@ -162,24 +168,50 @@ final class StudiePlusClient
             curl_setopt($this->curl, CURLOPT_POSTFIELDS, (string) $body);
         }
 
+        $started = microtime(true);
         $ok = curl_exec($this->curl);
+        $ms = (int) round((microtime(true) - $started) * 1000);
         if ($tooLarge) {
+            $this->logger?->warning('studieplus_http_too_large', ['method' => $method, 'path' => $path, 'ms' => $ms]);
             throw new SourceUnavailable('response_too_large');
         }
         if ($ok === false) {
+            $this->logger?->warning('studieplus_http_failed', [
+                'method' => $method,
+                'path' => $path,
+                'curl_errno' => curl_errno($this->curl),
+                'curl_error' => Logger::redact(curl_error($this->curl)),
+                'ms' => $ms,
+            ]);
             throw new SourceUnavailable('http_error_' . curl_errno($this->curl));
         }
         $status = (int) curl_getinfo($this->curl, CURLINFO_RESPONSE_CODE);
         $url = (string) curl_getinfo($this->curl, CURLINFO_EFFECTIVE_URL);
-
         $host = (string) parse_url($url, PHP_URL_HOST);
+
+        // Kun metode, faste stier, status, størrelser og tider — aldrig bodies, cookies eller headere.
+        $this->logger?->debug('studieplus_http', [
+            'method' => $method,
+            'path' => $path,
+            'status' => $status,
+            'final_host' => $host,
+            'final_path' => self::safePath((string) parse_url($url, PHP_URL_PATH)),
+            'redirects' => (int) curl_getinfo($this->curl, CURLINFO_REDIRECT_COUNT),
+            'sent_bytes' => $body !== null ? strlen($body) : 0,
+            'bytes' => strlen($this->buffer),
+            'ms' => $ms,
+        ]);
+
         if ($host !== $this->host() && !str_ends_with($host, '.studieplus.dk')) {
+            $this->logger?->warning('studieplus_unexpected_redirect_host', ['host' => Logger::redact($host)]);
             throw new SourceUnavailable('unexpected_redirect_host');
         }
         if ($status >= 500 && !($allowServerError && $status === 500)) {
+            $this->logger?->warning('studieplus_http_server_error', ['path' => $path, 'status' => $status]);
             throw new SourceUnavailable('http_' . $status);
         }
         if ($status === 429) {
+            $this->logger?->warning('studieplus_http_rate_limited', ['path' => $path]);
             throw new SourceUnavailable('http_429');
         }
 
@@ -187,6 +219,12 @@ final class StudiePlusClient
         $this->buffer = '';
 
         return $result;
+    }
+
+    /** Sti uden ;jsessionid o.l. og uden lange tilfældige segmenter. */
+    private static function safePath(string $path): string
+    {
+        return Logger::redact(explode(';', $path, 2)[0]);
     }
 
     private function host(): string

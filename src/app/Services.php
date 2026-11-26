@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SkemaService;
 
 use SkemaService\Feed\FeedService;
+use SkemaService\Ical\IcalWriter;
 use SkemaService\Store\MysqlStore;
 use SkemaService\StudiePlus\StudiePlusScheduleSource;
 use SkemaService\Sync\SyncService;
@@ -21,12 +22,17 @@ final class Services
 
     public function __construct(public readonly Config $config)
     {
-        $this->logger = new Logger($config->get('log_file'));
+        $logFile = $config->get('log_file');
+        $this->logger = new Logger(
+            is_string($logFile) && $logFile !== '' ? $logFile : null,
+            (string) $config->get('log_level', 'debug'),
+        );
+        $this->logger->capturePhpErrors();
         $this->store = MysqlStore::connect((array) $config->get('db'));
         $this->crypto = new Crypto($config->masterKey());
-        $this->source = StudiePlusScheduleSource::fromSettings((array) $config->get('studieplus', []));
+        $this->source = StudiePlusScheduleSource::fromSettings((array) $config->get('studieplus', []), $this->logger);
         $this->sync = new SyncService($this->store, $this->source, $this->crypto, null, $this->logger);
-        $this->feed = new FeedService($this->store, $this->crypto);
+        $this->feed = new FeedService($this->store, $this->crypto, new IcalWriter(), $this->logger);
     }
 
     public function __debugInfo(): array

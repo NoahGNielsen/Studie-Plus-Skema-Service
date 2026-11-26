@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SkemaService\StudiePlus;
 
 use SkemaService\Credentials;
+use SkemaService\Logger;
 use SkemaService\Schedule\DateRange;
 use SkemaService\Schedule\Lesson;
 use SkemaService\Sync\ScheduleSource;
@@ -31,6 +32,7 @@ final class StudiePlusScheduleSource implements ScheduleSource
         private readonly string $permutation = SkemaRequest::DEFAULT_PERMUTATION,
         private readonly string $policy = SkemaRequest::DEFAULT_POLICY,
         private readonly int $chunkDays = 7,
+        private readonly ?Logger $logger = null,
     ) {
         if ($this->chunkDays < 1 || $this->chunkDays > self::MAX_CHUNK_DAYS) {
             throw new \InvalidArgumentException('studieplus.chunk_days skal være mellem 1 og ' . self::MAX_CHUNK_DAYS . '.');
@@ -41,7 +43,7 @@ final class StudiePlusScheduleSource implements ScheduleSource
     }
 
     /** @param array<string, mixed> $settings */
-    public static function fromSettings(array $settings): self
+    public static function fromSettings(array $settings, ?Logger $logger = null): self
     {
         return new self(
             (bool) ($settings['enabled'] ?? false),
@@ -50,6 +52,7 @@ final class StudiePlusScheduleSource implements ScheduleSource
             (string) ($settings['permutation'] ?? SkemaRequest::DEFAULT_PERMUTATION),
             (string) ($settings['policy'] ?? SkemaRequest::DEFAULT_POLICY),
             (int) ($settings['chunk_days'] ?? 7),
+            $logger,
         );
     }
 
@@ -61,10 +64,11 @@ final class StudiePlusScheduleSource implements ScheduleSource
     public function fetch(Credentials $credentials, DateRange $range): array
     {
         if (!$this->enabled) {
+            $this->logger?->info('studieplus_disabled');
             throw new SourceUnavailable('studieplus_disabled');
         }
 
-        return $this->fetchWith(new StudiePlusClient($this->baseUrl, $this->instnr), $credentials, $range);
+        return $this->fetchWith(new StudiePlusClient($this->baseUrl, $this->instnr, 30, $this->logger), $credentials, $range);
     }
 
     /**
@@ -74,8 +78,16 @@ final class StudiePlusScheduleSource implements ScheduleSource
      */
     public function fetchWith(StudiePlusClient $client, Credentials $credentials, DateRange $range): array
     {
+        $started = microtime(true);
+        $chunks = 0;
+        $this->logger?->debug('studieplus_fetch_start', [
+            'from' => $range->firstDay->format('Y-m-d'),
+            'to' => $range->lastDay->format('Y-m-d'),
+            'chunk_days' => $this->chunkDays,
+        ]);
         try {
             $client->login($credentials);
+            $this->logger?->debug('studieplus_login_done', ['ms' => self::ms($started)]);
             $lessons = [];
             // Til-datoen sendes som dagen efter sidste dag, så sidste dag med sikkerhed er med.
             $end = $range->lastDay->modify('+1 day');
@@ -84,15 +96,43 @@ final class StudiePlusScheduleSource implements ScheduleSource
                     usleep(self::PAUSE_BETWEEN_REQUESTS_US);
                 }
                 $to = min($from->modify("+{$this->chunkDays} days"), $end);
-                foreach ($this->requestChunk($client, $from, $to) as $lesson) {
+                $chunkStarted = microtime(true);
+                $chunk = $this->requestChunk($client, $from, $to);
+                $chunks++;
+                $this->logger?->debug('studieplus_chunk', [
+                    'from' => $from->format('Y-m-d'),
+                    'to' => $to->format('Y-m-d'),
+                    'lessons' => count($chunk),
+                    'ms' => self::ms($chunkStarted),
+                ]);
+                foreach ($chunk as $lesson) {
                     $lessons[$lesson->sourceId] = $lesson;
                 }
             }
+            $this->logger?->info('studieplus_fetch_done', [
+                'chunks' => $chunks,
+                'lessons' => count($lessons),
+                'cancelled' => count(array_filter($lessons, static fn (Lesson $l): bool => $l->cancelled)),
+                'ms' => self::ms($started),
+            ]);
 
             return array_values($lessons);
+        } catch (SourceUnavailable $e) {
+            $this->logger?->warning('studieplus_fetch_failed', ['code' => $e->errorCode, 'chunks_done' => $chunks, 'ms' => self::ms($started)]);
+            throw $e;
+        } catch (\Throwable $e) {
+            if (!$e instanceof \SkemaService\Sync\AuthenticationFailed) {
+                $this->logger?->exception('studieplus_fetch_error', $e, ['chunks_done' => $chunks, 'ms' => self::ms($started)]);
+            }
+            throw $e;
         } finally {
             $client->close();
         }
+    }
+
+    private static function ms(float $since): int
+    {
+        return (int) round((microtime(true) - $since) * 1000);
     }
 
     /** @return list<Lesson> */

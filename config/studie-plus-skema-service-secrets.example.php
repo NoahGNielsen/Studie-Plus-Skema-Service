@@ -30,6 +30,11 @@ return [
     // Udelades den, logges til PHP's error_log.
     'log_file' => '/UDFYLD-STI-OVER-WEBROOT/studie-plus-skema-service.log',
 
+    // Laveste logniveau: 'debug' (standard — næsten alt, inkl. hvert HTTP-kald til Studie+),
+    // 'info' (requests, hentninger, logins), 'warn' eller 'error'.
+    // Der logges aldrig brugernavne, adgangskoder, cookies, feed-links eller skemaindhold.
+    'log_level' => 'debug',
+
     'studieplus' => [
         // Forbliver false, indtil GWT-hentningen er verificeret (se README).
         'enabled' => false,

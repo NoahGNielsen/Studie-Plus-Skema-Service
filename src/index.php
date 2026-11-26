@@ -20,6 +20,7 @@ ini_set('expose_php', '0');
 header_remove('X-Powered-By');
 
 $config = null;
+$services = null;
 try {
     $config = Config::load();
     $services = new Services($config);
@@ -33,9 +34,13 @@ try {
         $services->logger,
     ))->run();
 } catch (Throwable $e) {
-    // Brug den konfigurerede logfil, hvis konfigurationen nåede at blive indlæst.
+    // Brug den fælles logger (samme request-id), ellers den konfigurerede logfil, hvis konfigurationen nåede at blive indlæst.
     $logFile = $config?->get('log_file');
-    (new Logger(is_string($logFile) && $logFile !== '' ? $logFile : null))->exception('request_failed', $e);
+    $logger = $services?->logger ?? new Logger(is_string($logFile) && $logFile !== '' ? $logFile : null);
+    $logger->exception($services === null ? 'request_bootstrap_failed' : 'request_failed', $e, [
+        'method' => (string) ($_SERVER['REQUEST_METHOD'] ?? ''),
+        'path' => Logger::redact((string) (parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?: '/')),
+    ]);
     if (!headers_sent()) {
         http_response_code(500);
         header('Content-Type: text/plain; charset=utf-8');
