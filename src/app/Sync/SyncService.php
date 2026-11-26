@@ -36,6 +36,9 @@ final class SyncService
     /** Antal tomme svar i træk før en tom kalender accepteres. */
     public const EMPTY_CONFIRMATIONS = 3;
 
+    /** Hvor længe oprettelsen venter på en igangværende cron-hentning for samme bruger. */
+    private const ENROLL_LOCK_WAIT_SECONDS = 20;
+
     private Closure $clock;
     private Logger $logger;
 
@@ -84,12 +87,16 @@ final class SyncService
             $userId = $this->store->createUser($lookup, $usernameEnc, $passwordEnc, (string) $tokenHash, $now);
         }
 
-        if ($this->store->acquireUserLock($userId)) {
-            try {
-                $this->storeLessons($userId, $lessons, $now);
-                $this->store->markAttempt($userId, $now);
-                $this->store->markSuccess($userId, $now);
-            } finally {
+        // Skemaet skal være gemt, før linket vises, så kalenderen ikke er tom, hvis
+        // brugeren tilføjer den med det samme. Kører cron netop nu for brugeren,
+        // venter vi på den i stedet for at springe over.
+        $locked = $this->store->acquireUserLock($userId, self::ENROLL_LOCK_WAIT_SECONDS);
+        try {
+            $this->storeLessons($userId, $lessons, $now);
+            $this->store->markAttempt($userId, $now);
+            $this->store->markSuccess($userId, $now);
+        } finally {
+            if ($locked) {
                 $this->store->releaseUserLock($userId);
             }
         }

@@ -167,6 +167,21 @@ test('sync: ingen samtidige hentninger for samme bruger', function (): void {
     assertSame(SyncService::OK, $sync->syncUser($id));
 });
 
+test('sync: nyt link virker straks med skema, også hvis cron holder låsen', function (): void {
+    [$store, $source, $sync, , $feed] = syncFixture();
+    $id = $sync->enroll('elev-a', 'fake-pass-a')['userId'];
+    assertSame([], array_filter($store->syncCandidates(), static fn (array $c): bool => $c['last_attempt_at'] === null), 'cron må ikke tage en helt ny bruger');
+
+    $store->replaceEvents($id, []);
+    $store->acquireUserLock($id); // fx en igangværende cron-kørsel
+    $result = $sync->enroll('elev-a', 'fake-pass-a');
+    $store->releaseUserLock($id);
+
+    assertTrue($store->eventsForUser($id) !== [], 'skemaet gemmes trods låsen');
+    $body = $feed->render($result['token']);
+    assertTrue($body !== null && str_contains($body, 'BEGIN:VEVENT'), 'linket giver straks en kalender med lektioner');
+});
+
 test('sync: lektioner uden for intervallet og dubletter filtreres', function (): void {
     [$store, $source, $sync] = syncFixture();
     $source->lessons['elev-a'][] = lesson('gammel', '2026-10-01 08:00', '2026-10-01 09:00');

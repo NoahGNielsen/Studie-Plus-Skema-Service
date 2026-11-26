@@ -59,7 +59,7 @@ final class InMemoryStore implements Store
             'status' => self::STATUS_ACTIVE,
             'failure_count' => 0,
             'empty_streak' => 0,
-            'last_attempt_at' => null,
+            'last_attempt_at' => self::ts($now),
             'last_success_at' => null,
             'last_error' => null,
             'created_at' => self::ts($now),
@@ -105,7 +105,7 @@ final class InMemoryStore implements Store
         return $out;
     }
 
-    public function acquireUserLock(int $id): bool
+    public function acquireUserLock(int $id, int $waitSeconds = 0): bool
     {
         if (isset($this->locks[$id])) {
             return false;

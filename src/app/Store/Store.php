@@ -45,8 +45,8 @@ interface Store
     /** @return list<array{id: int, status: string, failure_count: int, last_attempt_at: ?string}> */
     public function syncCandidates(): array;
 
-    /** Ikke-blokerende lås pr. bruger; false hvis en anden proces er i gang. */
-    public function acquireUserLock(int $id): bool;
+    /** Lås pr. bruger; venter højst $waitSeconds (0 = ikke-blokerende). false hvis en anden proces er i gang. */
+    public function acquireUserLock(int $id, int $waitSeconds = 0): bool;
 
     public function releaseUserLock(int $id): void;
 

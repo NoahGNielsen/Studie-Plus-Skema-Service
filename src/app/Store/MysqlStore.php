@@ -50,10 +50,11 @@ final class MysqlStore implements Store
     {
         $ts = self::ts($now);
         $stmt = $this->pdo->prepare(
-            'INSERT INTO sps_users (lookup_hash, username_enc, password_enc, token_hash, status, created_at, updated_at, token_created_at, feed_last_access_on)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO sps_users (lookup_hash, username_enc, password_enc, token_hash, status, created_at, updated_at, token_created_at, last_attempt_at, feed_last_access_on)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
-        $stmt->execute([$lookupHash, $usernameEnc, $passwordEnc, $tokenHash, self::STATUS_ACTIVE, $ts, $ts, $ts, $now->format('Y-m-d')]);
+        // last_attempt_at sættes straks, så cron ikke tager den nye bruger (og låsen), mens oprettelsen gemmer skemaet.
+        $stmt->execute([$lookupHash, $usernameEnc, $passwordEnc, $tokenHash, self::STATUS_ACTIVE, $ts, $ts, $ts, $ts, $now->format('Y-m-d')]);
 
         return (int) $this->pdo->lastInsertId();
     }
@@ -99,10 +100,10 @@ final class MysqlStore implements Store
         ], $rows);
     }
 
-    public function acquireUserLock(int $id): bool
+    public function acquireUserLock(int $id, int $waitSeconds = 0): bool
     {
-        $stmt = $this->pdo->prepare('SELECT GET_LOCK(?, 0)');
-        $stmt->execute([self::lockName($id)]);
+        $stmt = $this->pdo->prepare('SELECT GET_LOCK(?, ?)');
+        $stmt->execute([self::lockName($id), max(0, $waitSeconds)]);
 
         return (int) $stmt->fetchColumn() === 1;
     }
