@@ -25,9 +25,6 @@
 <section class="card">
     <h2>Det skal du vide</h2>
     <ul>
-        <li>Krypteringsnøglen ligger på samme server som databasen. Bliver serveren kompromitteret, kan dine loginoplysninger blive afsløret.
-            Brug derfor en adgangskode, du ikke bruger andre steder.</li>
-        <li>Kalenderlinket er en hemmelighed: alle med linket kan se dit skema. Lav et nyt link, hvis det er kommet ud.</li>
         <li>Din kalender-app (fx Apple, Google eller Microsoft) henter linket og kan gemme skemaet hos sig.</li>
         <li>Webhotellets server kan registrere adresser i sine adgangslogs. Tjenesten selv logger aldrig links, adgangskoder eller cookies.</li>
         <li>Tjenesten er uofficiel og kan holde op med at virke, hvis Studie+ ændrer sig.</li>

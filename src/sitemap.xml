@@ -3,4 +3,13 @@
     <url>
         <loc>https://studieplus-skema-service.noahgajnielsen.dk/</loc>
     </url>
+    <url>
+        <loc>https://studieplus-skema-service.noahgajnielsen.dk/direkte-login</loc>
+    </url>
+    <url>
+        <loc>https://studieplus-skema-service.noahgajnielsen.dk/administrer</loc>
+    </url>
+    <url>
+        <loc>https://studieplus-skema-service.noahgajnielsen.dk/privatliv</loc>
+    </url>
 </urlset>
