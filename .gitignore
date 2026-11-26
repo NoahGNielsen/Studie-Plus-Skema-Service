@@ -1,0 +1,14 @@
+# Hemmeligheder — må aldrig committes
+studie-plus-skema-service-secrets.php
+*.secrets.php
+
+# Logs og lokale data
+var/
+*.log
+
+# Rå Studie+-svar må ikke committes (kun anonymiserede fixtures i tests/fixtures)
+*.gwt
+studieplus-raw-*
+
+.idea/
+.vscode/

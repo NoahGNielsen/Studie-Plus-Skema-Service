@@ -1,0 +1,160 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f6f7f9;
+  --card: #ffffff;
+  --text: #1c2430;
+  --muted: #5b6676;
+  --border: #dde2e8;
+  --accent: #1f5fbf;
+  --accent-text: #ffffff;
+  --warn-bg: #fff6dd;
+  --warn-border: #e7c35a;
+  --error-bg: #fde8e8;
+  --error-border: #e08080;
+  --danger: #b42318;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12161c;
+    --card: #1b2129;
+    --text: #e6eaf0;
+    --muted: #9aa5b4;
+    --border: #2c3440;
+    --accent: #6ea1ff;
+    --accent-text: #0d1117;
+    --warn-bg: #3a3218;
+    --warn-border: #8a7330;
+    --error-bg: #3b1d1d;
+    --error-border: #8f4040;
+    --danger: #ff7b72;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font: 1rem/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+a { color: var(--accent); }
+
+.site-header, main, .site-footer {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem 1rem;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+.site-header nav { display: flex; gap: 1rem; }
+.brand { font-weight: 700; text-decoration: none; color: var(--text); }
+
+h1 { font-size: 1.6rem; line-height: 1.25; margin: .5rem 0 1rem; }
+h2 { font-size: 1.15rem; margin: 0 0 .5rem; }
+.lead { font-size: 1.08rem; color: var(--muted); }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.1rem;
+  margin: 1rem 0;
+}
+
+.card--danger { border-color: var(--danger); }
+.card ul { padding-left: 1.2rem; margin: .25rem 0; }
+.card li { margin: .35rem 0; }
+
+.form label { display: block; font-weight: 600; margin: .8rem 0 .3rem; }
+
+.form input[type="text"], .form input[type="password"], .copy-input {
+  width: 100%;
+  font: inherit;
+  padding: .7rem .8rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.check {
+  display: flex !important;
+  gap: .6rem;
+  align-items: flex-start;
+  font-weight: 400 !important;
+  margin: .9rem 0;
+}
+
+.check input { margin-top: .3rem; width: 1.15rem; height: 1.15rem; flex: none; }
+
+.button {
+  display: inline-block;
+  font: inherit;
+  font-weight: 600;
+  padding: .7rem 1.2rem;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+  text-decoration: none;
+  cursor: pointer;
+  min-height: 2.75rem;
+}
+
+.button:disabled { opacity: .5; cursor: not-allowed; }
+.button--secondary { background: transparent; color: var(--accent); }
+.button--danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.form .button { width: 100%; margin-top: .5rem; }
+
+.link-button {
+  background: none;
+  border: 0;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: .5rem 0;
+}
+
+.copy-row { display: flex; gap: .5rem; }
+.copy-input { font-family: ui-monospace, monospace; font-size: .85rem; }
+.copy-status { min-height: 1.5em; color: var(--muted); margin: .3rem 0; }
+
+.notice {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .8rem 1rem;
+  margin: 1rem 0;
+}
+
+.notice--warn { background: var(--warn-bg); border-color: var(--warn-border); }
+.notice--error { background: var(--error-bg); border-color: var(--error-border); }
+
+.hint { color: var(--muted); font-size: .92rem; }
+
+details { border-top: 1px solid var(--border); padding: .6rem 0; }
+summary { cursor: pointer; font-weight: 600; min-height: 2rem; }
+
+.status { display: grid; grid-template-columns: auto 1fr; gap: .3rem 1rem; margin: 0; }
+.status dt { color: var(--muted); }
+.status dd { margin: 0; }
+
+.site-footer { color: var(--muted); font-size: .85rem; padding-top: 1rem; padding-bottom: 2rem; }
+
+@media (max-width: 30rem) {
+  .copy-row { flex-direction: column; }
+  .status { grid-template-columns: 1fr; }
+  .status dd { margin-bottom: .5rem; }
+}

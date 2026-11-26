@@ -1,0 +1,28 @@
+# Studie Plus Skema Service — webroot/.htaccess
+# Hele src/ er webroot. Koden i app/ spærres af app/.htaccess.
+# Kræver mod_rewrite (VERIFICÉR hos Simply.com; standard for PHP-webhotel).
+
+Options -Indexes
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    RewriteRule ^index\.php$ - [L]
+
+    # Statiske filer serveres direkte, hvis de findes
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^(assets/|\.well-known/security\.txt$|robots\.txt$|sitemap\.xml$) - [L]
+
+    # Alt andet (inkl. app/) går til index.php
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# Afvis skjulte filer (fx .ftp-deploy-sync-state.json) og alt der ligner konfiguration/backup
+<FilesMatch "(^\.|\.(sql|log|ini|bak|swp|dist|md)$|secrets)">
+    Require all denied
+</FilesMatch>
+
+# PHP-version kan vælges i Simply.com-kontrolpanelet (Website → PHP Version),
+# som overstyrer en evt. linje her. Eksempel:
+# AddType application/x-httpd-php84 .php

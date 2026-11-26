@@ -1,0 +1,2 @@
+# Koden må aldrig tilgås direkte over HTTP (gælder også uden mod_rewrite).
+Require all denied
