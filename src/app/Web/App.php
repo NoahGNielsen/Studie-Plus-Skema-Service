@@ -187,7 +187,7 @@ final class App
         }
         if ($error !== null) {
             $this->logger->info('create_rejected', ['reason' => $reason]);
-            View::render('home', ['enabled' => $this->source->isEnabled(), 'error' => $error, 'username' => $username], 400);
+            $this->renderCreateError($keepLink, $username, $error, 400);
 
             return;
         }
@@ -195,20 +195,12 @@ final class App
         try {
             $result = $this->sync->enroll($username, $password, $keepLink);
         } catch (AuthenticationFailed) {
-            View::render('home', [
-                'enabled' => true,
-                'username' => $username,
-                'error' => 'Studie+ godkendte ikke brugernavn og adgangskode. Bemærk: du skal bruge et "Direkte" Studie+-login. Logger du normalt ind med UNI-Login eller MitID, skal du først oprette et Direkte login (se guiden under "Direkte login" i menuen).',
-            ], 400);
+            $this->renderCreateError($keepLink, $username, 'Studie+ godkendte ikke brugernavn og adgangskode. Bemærk: du skal bruge et "Direkte" Studie+-login. Logger du normalt ind med UNI-Login eller MitID, skal du først oprette et Direkte login (se guiden under "Direkte login" i menuen).', 400);
 
             return;
         } catch (SourceUnavailable $e) {
             $this->logger->warning('enroll_source_unavailable', ['code' => $e->errorCode]);
-            View::render('home', [
-                'enabled' => true,
-                'username' => $username,
-                'error' => 'Vi kunne ikke hente dit skema fra Studie+ lige nu. Der er ikke gemt noget. Prøv igen senere.',
-            ], 503);
+            $this->renderCreateError($keepLink, $username, 'Vi kunne ikke hente dit skema fra Studie+ lige nu. Der er ikke gemt noget. Prøv igen senere.', 503);
 
             return;
         }
@@ -223,6 +215,25 @@ final class App
             return;
         }
         View::render('created', ['feedUrl' => $this->feedUrl($result['token']), 'host' => $this->host()]);
+    }
+
+    /** Fejl fra "behold link"-popuppen vises i popuppen på Administrér; ellers på forsiden. */
+    private function renderCreateError(bool $keepLink, string $username, string $error, int $status): void
+    {
+        if (!$keepLink) {
+            View::render('home', ['enabled' => $this->source->isEnabled(), 'error' => $error, 'username' => $username], $status);
+
+            return;
+        }
+        $userId = $this->managedUserId();
+        $user = $userId !== null ? $this->store->findUserById($userId) : null;
+        $vars = ['keepError' => $error, 'keepUsername' => $username];
+        if ($user !== null) {
+            View::render('manage', $vars + ['user' => self::publicStatus($user)], $status);
+
+            return;
+        }
+        View::render('manage_login', $vars, $status);
     }
 
     private function manage(): void
@@ -264,7 +275,7 @@ final class App
         if ($userId === null) {
             $this->logger->info('manage_login_rejected', ['reason' => ($username === '' || $password === '') ? 'empty_input' : 'no_match']);
             View::render('manage_login', [
-                'error' => 'Vi fandt ingen kalender med de oplysninger. Har du skiftet adgangskode i Studie+, så opret din kalender igen på forsiden.',
+                'error' => 'Vi fandt ingen kalender med de oplysninger. Har du skiftet adgangskode i Studie+, så brug knappen "Jeg har skiftet adgangskode i Studie+" herunder.',
             ], 400);
 
             return;

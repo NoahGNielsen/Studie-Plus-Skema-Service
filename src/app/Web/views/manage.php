@@ -19,10 +19,12 @@ $lastError = $user['lastError'] ?? null;
     <?php if (($user['status'] ?? '') === 'needs_reauth'): ?>
         <div class="notice notice--warn">
             <strong>Din kalender opdateres ikke lige nu.</strong> Studie+ afviste dine gemte loginoplysninger — typisk fordi du har
-            skiftet adgangskode. Gå til <a href="/">forsiden</a>, indtast din nye adgangskode og sæt flueben i
-            <em>"Jeg har allerede et kalenderlink og vil beholde det"</em>.
+            skiftet adgangskode. Opdatér dine oplysninger med knappen herunder — dit kalenderlink bliver ved med at virke.
             <br>Vi prøver ikke igen automatisk, så din Studie+-konto ikke bliver spærret.
         </div>
+    <?php endif; ?>
+    <?php if (($user['status'] ?? '') === 'needs_reauth' || !empty($keepError)): ?>
+        <?php require __DIR__ . '/_keep_link_dialog.php'; ?>
     <?php endif; ?>
     <dl class="status">
         <dt>Sidst opdateret</dt>

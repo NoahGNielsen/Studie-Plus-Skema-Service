@@ -16,3 +16,9 @@
     <button type="submit" class="button">Fortsæt</button>
     <p class="hint">Du logges automatisk ud efter 15 minutter uden aktivitet.</p>
 </form>
+
+<section class="card">
+    <h2>Har du skiftet adgangskode?</h2>
+    <p>Så virker den gamle ikke til at logge ind ovenfor. Opdatér i stedet dine oplysninger her — dit nuværende kalenderlink bliver ved med at virke.</p>
+    <?php require __DIR__ . '/_keep_link_dialog.php'; ?>
+</section>

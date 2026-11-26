@@ -33,11 +33,6 @@
     <input id="password" name="password" type="password" required maxlength="200" autocomplete="current-password" <?= $enabled ? '' : 'disabled' ?>>
 
     <label class="check">
-        <input type="checkbox" name="keep_link" value="yes">
-        <span>Jeg har allerede et kalenderlink og vil beholde det (fx efter skift af adgangskode)</span>
-    </label>
-
-    <label class="check">
         <input type="checkbox" name="consent" value="yes" required>
         <span>Jeg accepterer, at mine Studie+-loginoplysninger gemmes krypteret og bruges til at hente mit skema automatisk,
             som beskrevet under <a href="/privatliv">Privatliv</a>.</span>
@@ -46,3 +41,5 @@
     <button type="submit" class="button" <?= $enabled ? '' : 'disabled' ?>>Opret min kalender</button>
     <p class="hint" data-loading-text role="status" aria-live="polite" hidden>Vi henter dit skema … Det kan tage op til 2 minutter, mens vi tjekker dit login og henter dit skema. Luk ikke siden.</p>
 </form>
+
+<p class="hint">Har du allerede en kalender og har skiftet adgangskode i Studie+? Så kan du beholde dit link under <a href="/administrer">Administrér</a>.</p>

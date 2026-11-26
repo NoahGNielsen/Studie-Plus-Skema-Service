@@ -158,3 +158,17 @@ summary { cursor: pointer; font-weight: 600; min-height: 2rem; }
   .status { grid-template-columns: 1fr; }
   .status dd { margin-bottom: .5rem; }
 }
+
+.dialog {
+  width: min(32rem, calc(100% - 2rem));
+  max-height: calc(100% - 2rem);
+  overflow: auto;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+.dialog::backdrop { background: rgb(0 0 0 / .5); }
+.dialog h2 { margin-top: 0; }
+.dialog .link-button { display: block; margin: .75rem auto 0; }
