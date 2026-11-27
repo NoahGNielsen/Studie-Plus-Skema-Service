@@ -39,7 +39,7 @@ Tjenesten logger ind på Studie+ for dig, henter dit eget skema og udgiver det s
 |---|---|
 | Titel | Faget eller timens navn. Aflyste lektioner hedder "Aflyst: …" |
 | Sted | Lokale(r) |
-| Beskrivelse | Lærer(e), lokale, note og lektier (som ren tekst) |
+| Beskrivelse | Lærer(e), note og lektier (som ren tekst) |
 | Tidsrum | 14 dage tilbage og 120 dage frem |
 
 - **Opdatering:** Mandag–fredag kl. 06:30–16:00 hentes skemaet hvert 15. minut, ellers hver time. Din kalender-app bestemmer selv, hvor tit den henter linket. Google Kalender kan være flere timer om det.

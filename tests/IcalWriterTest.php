@@ -61,12 +61,12 @@ test('ical: tekst escapes korrekt', function (): void {
     assertContains('SUMMARY:Fysik\\; kemi\\, bio\\\\x', $ics);
 });
 
-test('ical: beskrivelse indeholder lærer, lokale, note og lektier', function (): void {
+test('ical: beskrivelse indeholder lærer, note og lektier; lokale kun i LOCATION', function (): void {
     $tz = new DateTimeZone('Europe/Copenhagen');
     $l = new Lesson('a', 'Dansk', new DateTimeImmutable('2026-12-07 08:00', $tz), new DateTimeImmutable('2026-12-07 09:00', $tz),
         ['Lærer A', 'Lærer B'], ['A1.02'], 'Husk bog', 'Læs s. 10-20');
     $ics = unfold((new IcalWriter())->render([feedEvent($l)]));
-    assertContains('DESCRIPTION:Lærere: Lærer A\\, Lærer B\\nLokale: A1.02\\n\\nNote:\\nHusk bog\\n\\nLektier:\\nLæs s. 10-20', $ics);
+    assertContains('DESCRIPTION:Lærere: Lærer A\\, Lærer B\\n\\nNote:\\nHusk bog\\n\\nLektier:\\nLæs s. 10-20', $ics);
     assertContains('LOCATION:A1.02', $ics);
 });
 

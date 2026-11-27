@@ -109,9 +109,6 @@ final class IcalWriter
         if ($lesson->teachers !== []) {
             $parts[] = (count($lesson->teachers) > 1 ? 'Lærere: ' : 'Lærer: ') . implode(', ', $lesson->teachers);
         }
-        if ($lesson->rooms !== []) {
-            $parts[] = (count($lesson->rooms) > 1 ? 'Lokaler: ' : 'Lokale: ') . implode(', ', $lesson->rooms);
-        }
         if ($lesson->note !== '') {
             $parts[] = "\nNote:\n" . $lesson->note;
         }
