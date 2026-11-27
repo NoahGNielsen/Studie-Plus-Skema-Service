@@ -87,6 +87,13 @@ test('ical: aflyst lektion får STATUS:CANCELLED', function (): void {
     assertContains('SEQUENCE:2', $ics);
 });
 
+test('ical: lektion uden lærer får ikon foran titlen', function (): void {
+    $ics = (new IcalWriter())->render([feedEvent(utcLesson('2026-12-07 08:00', '2026-12-07 09:00', 'Fysik'))]);
+    assertContains('SUMMARY:' . IcalWriter::NO_TEACHER_ICON . ' Fysik', $ics);
+    $withTeacher = (new IcalWriter())->render([feedEvent(lesson('a', '2026-12-07 08:00', '2026-12-07 09:00', 'Fysik'))]);
+    assertContains('SUMMARY:Fysik', $withTeacher);
+});
+
 test('ical: samme input giver identisk output', function (): void {
     $events = [feedEvent(lesson('b', '2026-12-08 08:00', '2026-12-08 09:00'), 0, 'b@t'), feedEvent(lesson('a', '2026-12-07 08:00', '2026-12-07 09:00'), 0, 'a@t')];
     assertSame((new IcalWriter())->render($events), (new IcalWriter())->render(array_reverse($events)));

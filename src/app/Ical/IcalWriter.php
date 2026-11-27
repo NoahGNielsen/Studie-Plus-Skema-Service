@@ -20,6 +20,8 @@ use SkemaService\Schedule\Lesson;
 final class IcalWriter
 {
     private const CRLF = "\r\n";
+    /** Sættes foran titlen, når en (ikke-aflyst) lektion ingen lærer har. */
+    public const NO_TEACHER_ICON = '❓';
 
     public function __construct(
         private readonly string $calendarName = 'Skema (Studie+ Skema Service)',
@@ -54,12 +56,24 @@ final class IcalWriter
         return implode(self::CRLF, array_map([self::class, 'fold'], $lines)) . self::CRLF;
     }
 
+    private static function summary(Lesson $lesson): string
+    {
+        if ($lesson->cancelled) {
+            return 'Aflyst: ' . $lesson->title;
+        }
+        if ($lesson->teachers === []) {
+            return self::NO_TEACHER_ICON . ' ' . $lesson->title;
+        }
+
+        return $lesson->title;
+    }
+
     /** @return list<string> */
     private function event(FeedEvent $event): array
     {
         $lesson = $event->lesson;
         $stamp = self::utc($event->lastModified);
-        $summary = $lesson->cancelled ? 'Aflyst: ' . $lesson->title : $lesson->title;
+        $summary = self::summary($lesson);
 
         $lines = [
             'BEGIN:VEVENT',
