@@ -97,6 +97,12 @@ final class Lesson
         );
     }
 
+    /** Samme lektion, markeret som aflyst. */
+    public function asCancelled(): self
+    {
+        return self::fromArray(['cancelled' => true] + $this->toArray());
+    }
+
     /** Ændres når en kalender-relevant egenskab ændres (bruges til SEQUENCE). */
     public function contentHash(): string
     {

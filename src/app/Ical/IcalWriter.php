@@ -14,7 +14,8 @@ use SkemaService\Schedule\Lesson;
  * - Tider skrives som lokal tid med TZID=Europe/Copenhagen og en
  *   medfølgende VTIMEZONE, så sommer-/vintertid håndteres af klienten.
  * - Aflyste lektioner får STATUS:CANCELLED; fjernede lektioner udelades
- *   (abonnenter fjerner dem ved næste opdatering).
+ *   (abonnenter fjerner dem ved næste opdatering). Lektioner der forsvinder
+ *   i indeværende uge markeres som aflyste af SyncService.
  * - Ændrede lektioner får højere SEQUENCE og ny LAST-MODIFIED.
  */
 final class IcalWriter

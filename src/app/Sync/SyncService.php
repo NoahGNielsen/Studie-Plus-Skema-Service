@@ -181,7 +181,7 @@ final class SyncService
 
             $fetched = count($lessons);
             $lessons = $this->filter($lessons, $now);
-            if ($lessons === [] && $this->store->eventsForUser($userId) !== []) {
+            if ($lessons === [] && $this->hasActiveEvents($userId)) {
                 $streak = $this->store->incrementEmptyStreak($userId);
                 if ($streak < self::EMPTY_CONFIRMATIONS) {
                     $this->logger->warning('empty_result_kept_previous', ['user' => $userId, 'streak' => $streak]);
@@ -286,12 +286,20 @@ final class SyncService
     }
 
     /**
+     * Studie+ aflyser en lektion ved at fjerne den fra skemaet. Derfor:
+     *  - En gemt lektion i indeværende uge (man–søn, dansk tid), der ikke
+     *    længere er med i svaret, beholdes og markeres som aflyst.
+     *  - En lektion, der allerede er markeret som aflyst, beholdes, så længe
+     *    den er inden for intervallet (også når ugen er gået).
+     *  - Forsvinder en lektion i en anden uge, fjernes den bare.
+     * Dukker lektionen op igen, overskrives den af den hentede version.
+     *
      * @param list<Lesson> $lessons
-     * @return array{added: int, changed: int, unchanged: int, removed: int}
+     * @return array{added: int, changed: int, unchanged: int, removed: int, cancelled: int}
      */
     private function storeLessons(int $userId, array $lessons, DateTimeImmutable $now): array
     {
-        $stats = ['added' => 0, 'changed' => 0, 'unchanged' => 0, 'removed' => 0];
+        $stats = ['added' => 0, 'changed' => 0, 'unchanged' => 0, 'removed' => 0, 'cancelled' => 0];
         $existing = [];
         foreach ($this->store->eventsForUser($userId) as $row) {
             $existing[$row['uid']] = $row;
@@ -325,10 +333,79 @@ final class SyncService
                 'payload' => json_encode($lesson->toArray(), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
             ];
         }
+
+        // Forsvundne lektioner: aflyst i denne uge, ellers fjernet.
+        $range = $this->range($now);
+        [$weekStart, $weekEnd] = self::currentWeek($now);
+        foreach ($existing as $uid => $previous) {
+            $missing = self::storedLesson($previous);
+            if ($missing === null || !$range->overlaps($missing)) {
+                continue;
+            }
+            if ($missing->cancelled) {
+                $rows[] = $previous;
+                unset($existing[$uid]);
+                continue;
+            }
+            if ($missing->start >= $weekEnd || $missing->end <= $weekStart) {
+                continue;
+            }
+            $cancelled = $missing->asCancelled();
+            $rows[] = [
+                'uid' => (string) $uid,
+                'sequence' => (int) $previous['sequence'] + 1,
+                'content_hash' => $cancelled->contentHash(),
+                'last_modified' => $nowUtc,
+                'payload' => json_encode($cancelled->toArray(), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+            ];
+            unset($existing[$uid]);
+            $stats['cancelled']++;
+        }
+
         $this->store->replaceEvents($userId, $rows);
         $stats['removed'] = count($existing);
 
         return $stats;
+    }
+
+    /** @param array<string, mixed> $row */
+    private static function storedLesson(array $row): ?Lesson
+    {
+        $data = json_decode((string) $row['payload'], true);
+        if (!is_array($data)) {
+            return null;
+        }
+        try {
+            return Lesson::fromArray($data);
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /** Om brugeren har gemte lektioner, der ikke er aflyst. */
+    private function hasActiveEvents(int $userId): bool
+    {
+        foreach ($this->store->eventsForUser($userId) as $row) {
+            $lesson = self::storedLesson($row);
+            if ($lesson !== null && !$lesson->cancelled) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Indeværende uge: mandag 00:00 til næste mandag 00:00, dansk tid.
+     *
+     * @return array{DateTimeImmutable, DateTimeImmutable}
+     */
+    private static function currentWeek(DateTimeImmutable $now): array
+    {
+        $today = $now->setTimezone(new DateTimeZone(Lesson::TIMEZONE))->setTime(0, 0);
+        $monday = $today->modify('-' . ((int) $today->format('N') - 1) . ' days');
+
+        return [$monday, $monday->modify('+7 days')];
     }
 
     private function range(DateTimeImmutable $now): DateRange

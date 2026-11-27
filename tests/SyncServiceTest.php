@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use SkemaService\Feed\FeedService;
 use SkemaService\Logger;
+use SkemaService\Schedule\Lesson;
 use SkemaService\Store\Store;
 use SkemaService\Sync\AuthenticationFailed;
 use SkemaService\Sync\SourceUnavailable;
@@ -103,12 +104,67 @@ test('sync: ændret lektion får højere SEQUENCE og ny LAST-MODIFIED', function
     assertSame($old[$same]['last_modified'], $new[$same]['last_modified']);
 });
 
-test('sync: fjernet lektion forsvinder fra feeden', function (): void {
+/** @return array<string, Lesson> lektioner pr. kilde-id */
+function storedLessons(InMemoryStore $store, int $id): array
+{
+    $out = [];
+    foreach ($store->eventsForUser($id) as $row) {
+        $lesson = Lesson::fromArray(json_decode($row['payload'], true));
+        $out[$lesson->sourceId] = $lesson;
+    }
+
+    return $out;
+}
+
+test('sync: lektion der forsvinder i denne uge markeres som aflyst', function (): void {
+    [$store, $source, $sync, $clock] = syncFixture();
+    $id = $sync->enroll('elev-a', 'fake-pass-a')['userId'];
+    array_pop($source->lessons['elev-a']); // a2, tirsdag i samme uge
+    $clock->advance('+15 minutes');
+    assertSame(SyncService::OK, $sync->syncUser($id));
+
+    $lessons = storedLessons($store, $id);
+    assertSame(2, count($lessons));
+    assertTrue($lessons['a2']->cancelled, 'a2 er aflyst');
+    assertTrue(!$lessons['a1']->cancelled, 'a1 er uændret');
+    $row = array_column($store->eventsForUser($id), null, 'uid')[testCrypto()->eventUid($id, 'a2')];
+    assertSame(1, $row['sequence']);
+    assertSame('2026-12-07 09:15:00', $row['last_modified']);
+
+    // Næste hentning ændrer ikke den aflyste lektion igen.
+    $clock->advance('+15 minutes');
+    $sync->syncUser($id);
+    assertSame(1, array_column($store->eventsForUser($id), null, 'uid')[testCrypto()->eventUid($id, 'a2')]['sequence']);
+});
+
+test('sync: lektion der forsvinder i en anden uge fjernes', function (): void {
     [$store, $source, $sync] = syncFixture();
+    $source->lessons['elev-a'][] = lesson('a3', '2026-12-14 08:10', '2026-12-14 09:40', 'Fysik');
     $id = $sync->enroll('elev-a', 'fake-pass-a')['userId'];
     array_pop($source->lessons['elev-a']);
     $sync->syncUser($id);
-    assertSame(1, count($store->eventsForUser($id)));
+    assertSame(['a1', 'a2'], array_keys(storedLessons($store, $id)));
+});
+
+test('sync: aflyst lektion bliver i kalenderen når ugen er gået', function (): void {
+    [$store, $source, $sync, $clock] = syncFixture();
+    $id = $sync->enroll('elev-a', 'fake-pass-a')['userId'];
+    array_pop($source->lessons['elev-a']);
+    $sync->syncUser($id);
+    $clock->advance('+8 days');
+    $sync->syncUser($id);
+    assertTrue(storedLessons($store, $id)['a2']->cancelled);
+});
+
+test('sync: aflyst lektion der dukker op igen er ikke længere aflyst', function (): void {
+    [$store, $source, $sync] = syncFixture();
+    $id = $sync->enroll('elev-a', 'fake-pass-a')['userId'];
+    $removed = array_pop($source->lessons['elev-a']);
+    $sync->syncUser($id);
+    $source->lessons['elev-a'][] = $removed;
+    $sync->syncUser($id);
+    assertTrue(!storedLessons($store, $id)['a2']->cancelled);
+    assertSame(2, array_column($store->eventsForUser($id), null, 'uid')[testCrypto()->eventUid($id, 'a2')]['sequence']);
 });
 
 test('sync: fejl i hentning bevarer senest gyldige data', function (): void {
@@ -137,7 +193,10 @@ test('sync: pludseligt tomt svar erstatter først data efter 3 bekræftelser', f
     assertSame(SyncService::KEPT_PREVIOUS, $sync->syncUser($id));
     assertSame($before, $store->eventsForUser($id));
     assertSame(SyncService::OK, $sync->syncUser($id));
-    assertSame([], $store->eventsForUser($id));
+    $lessons = storedLessons($store, $id);
+    assertSame(2, count($lessons), 'lektionerne i denne uge bliver som aflyste');
+    assertTrue($lessons['a1']->cancelled && $lessons['a2']->cancelled);
+    assertSame(SyncService::OK, $sync->syncUser($id), 'kun aflyste lektioner tæller ikke som tidligere data');
 });
 
 test('sync: afvist login stopper automatiske forsøg', function (): void {

@@ -43,7 +43,8 @@ Tjenesten logger ind på Studie+ for dig, henter dit eget skema og udgiver det s
 | Tidsrum | 14 dage tilbage og 120 dage frem |
 
 - **Opdatering:** Mandag–fredag kl. 06:30–16:00 hentes skemaet hvert 15. minut, ellers hver time. Din kalender-app bestemmer selv, hvor tit den henter linket. Google Kalender kan være flere timer om det.
-- **Ændringer:** Flyttede eller ændrede lektioner opdateres i kalenderen uden dubletter. Fjernede lektioner forsvinder ved næste opdatering.
+- **Ændringer:** Flyttede eller ændrede lektioner opdateres i kalenderen uden dubletter.
+- **Aflysninger:** Studie+ aflyser en lektion ved at fjerne den. Forsvinder en lektion i den indeværende uge (mandag–søndag), bliver den i kalenderen som "Aflyst: …". Forsvinder en lektion i en anden uge, fjernes den bare. Dukker den op igen, er den ikke længere aflyst.
 - **Fravær** og andre data, kalenderen ikke bruger, hentes og gemmes ikke.
 
 ## Begrænsninger
@@ -144,7 +145,7 @@ tests/                       test-runner uden afhængigheder, mockdata og fixtur
 
 - **Tider** skrives som `DTSTART;TZID=Europe/Copenhagen:…` med en medfølgende `VTIMEZONE`, så sommer- og vintertid håndteres korrekt.
 - **UID** = `HMAC(bruger-id + Studie+-begivenhedens id)`. Stabil mellem opdateringer og afslører hverken bruger eller indhold.
-- **Ændringer** giver `SEQUENCE + 1` og ny `LAST-MODIFIED`. Aflyste lektioner får `STATUS:CANCELLED`.
+- **Ændringer** giver `SEQUENCE + 1` og ny `LAST-MODIFIED`. Aflyste lektioner får `STATUS:CANCELLED`. En gemt lektion i indeværende uge, som mangler i svaret, gemmes som aflyst (`SyncService::storeLessons`) og beholdes, så længe den er inden for intervallet.
 - **HTML** i noter og lektier konverteres til ren tekst. Script, style og iframe fjernes med indhold, også når de er entity-kodede. Kun http(s)-links bevares, som tekst.
 - **Svar:** `Cache-Control: private, no-cache`, `ETag` (304 ved uændret indhold) og `REFRESH-INTERVAL`/`X-PUBLISHED-TTL` på 15 minutter.
 
