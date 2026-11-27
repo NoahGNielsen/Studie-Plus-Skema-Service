@@ -21,7 +21,7 @@ final class IcalWriter
 {
     private const CRLF = "\r\n";
     /** Sættes foran titlen, når en (ikke-aflyst) lektion ingen lærer har. */
-    public const NO_TEACHER_ICON = '🪑';
+    public const NO_TEACHER_ICON = '👻';
 
     public function __construct(
         private readonly string $calendarName = 'Skema (Studie+ Skema Service)',
